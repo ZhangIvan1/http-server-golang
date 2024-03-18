@@ -180,7 +180,7 @@ func handleFile(req request, conn net.Conn, baseDir string) error {
 		return err
 	}
 
-	req.Body = []byte(fileData)
+	req.Body = fileData
 	var writeBuffer bytes.Buffer
 
 	writeBuffer.Write([]byte(STATUS_OK + CRLF))
