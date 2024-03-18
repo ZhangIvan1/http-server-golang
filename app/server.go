@@ -146,12 +146,13 @@ func handleEcho(req request, conn net.Conn) error {
 }
 
 func handleUserAgent(req request, conn net.Conn) error {
+	req.Body = []byte(req.Headers["User-Agent"])
 	var writeBuffer bytes.Buffer
 
 	writeBuffer.Write([]byte(STATUS_OK + CRLF))
 	writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
-	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Headers["User-Agent"])) + CRLF + CRLF))
-	writeBuffer.Write([]byte(string(req.Headers["User-Agent"]) + CRLF + CRLF))
+	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
+	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
 
 	if _, err := writeBuffer.WriteTo(conn); err != nil {
 		return err
