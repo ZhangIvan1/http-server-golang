@@ -120,7 +120,7 @@ func setHeaders(headerLines []string, req *request) error {
 	}
 
 	for _, line := range headerLines {
-		splittedLine := strings.Split(line, " ")
+		splittedLine := strings.Split(line, ": ")
 		if len(splittedLine) == 2 {
 			req.Headers[splittedLine[0]] = splittedLine[1]
 			fmt.Println(splittedLine[0], " ", splittedLine[1])
