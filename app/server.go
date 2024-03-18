@@ -130,6 +130,21 @@ func setHeaders(headerLines []string, req *request) error {
 	return nil
 }
 
+func handleEcho(req request, conn net.Conn) error {
+	req.Body = []byte(strings.TrimPrefix(req.Path, "/echo/"))
+	var writeBuffer bytes.Buffer
+
+	writeBuffer.Write([]byte(STATUS_OK + CRLF))
+	writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
+	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
+	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
+
+	if _, err := writeBuffer.WriteTo(conn); err != nil {
+		return err
+	}
+	return nil
+}
+
 func handleResponse(conn net.Conn, req request) error {
 	switch {
 	case req.Path == "/":
@@ -137,15 +152,7 @@ func handleResponse(conn net.Conn, req request) error {
 			return err
 		}
 	case strings.HasPrefix(req.Path, "/echo/"):
-		req.Body = []byte(strings.TrimPrefix(req.Path, "/echo/"))
-		var writeBuffer bytes.Buffer
-
-		writeBuffer.Write([]byte(STATUS_OK + CRLF))
-		writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
-		writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
-		writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
-
-		if _, err := writeBuffer.WriteTo(conn); err != nil {
+		if err := handleEcho(req, conn); err != nil {
 			return err
 		}
 
