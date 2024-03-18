@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -17,16 +19,17 @@ const (
 
 type headers map[string]string
 type request struct {
-	method  string
-	path    string
-	version string
-	headers headers
+	Method  string
+	Path    string
+	Version string
+	Headers headers
+	Body    []byte
 }
 
 const (
-	CRLF             = "\r\n\r\n"
-	STATUS_OK        = "HTTP/1.1 200 OK" + CRLF
-	STATUS_NOT_FOUND = "HTTP/1.1 404 Not Found" + CRLF
+	CRLF             = "\r\n"
+	STATUS_OK        = "HTTP/1.1 200 OK"
+	STATUS_NOT_FOUND = "HTTP/1.1 404 Not Found"
 )
 
 func main() {
@@ -104,22 +107,22 @@ func setRequestPath(line string, req *request) error {
 		return errors.New("the HTTP startline should include three part like: GET /index.html HTTP/1.1")
 	}
 
-	req.method, req.path, req.version = parts[0], parts[1], parts[2]
-	fmt.Println(req.method, " ", req.path, " ", req.version)
+	req.Method, req.Path, req.Version = parts[0], parts[1], parts[2]
+	fmt.Println(req.Method, " ", req.Path, " ", req.Version)
 	return nil
 }
 
 //Host: localhost:4221
 //User-Agent: curl/7.64.1
 func setHeaders(headerLines []string, req *request) error {
-	if req.headers == nil {
-		req.headers = make(headers, len(headerLines))
+	if req.Headers == nil {
+		req.Headers = make(headers, len(headerLines))
 	}
 
 	for _, line := range headerLines {
 		splittedLine := strings.Split(line, "")
 		if len(splittedLine) == 2 {
-			req.headers[splittedLine[0]] = splittedLine[1]
+			req.Headers[splittedLine[0]] = splittedLine[1]
 			fmt.Println(splittedLine[0], " ", splittedLine[1])
 		}
 	}
@@ -128,13 +131,26 @@ func setHeaders(headerLines []string, req *request) error {
 }
 
 func handleResponse(conn net.Conn, req request) error {
-	switch req.path {
-	case "/":
-		if _, err := conn.Write([]byte(STATUS_OK)); err != nil {
+	switch {
+	case req.Path == "/":
+		if _, err := conn.Write([]byte(STATUS_OK + CRLF + CRLF)); err != nil {
 			return err
 		}
+	case strings.HasPrefix(req.Path, "/echo/"):
+		req.Body = []byte(strings.TrimPrefix(req.Path, "/echo/"))
+		var writeBuffer bytes.Buffer
+
+		writeBuffer.Write([]byte(STATUS_OK + CRLF))
+		writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
+		writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
+		writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
+
+		if _, err := writeBuffer.WriteTo(conn); err != nil {
+			return err
+		}
+
 	default:
-		if _, err := conn.Write([]byte(STATUS_NOT_FOUND)); err != nil {
+		if _, err := conn.Write([]byte(STATUS_NOT_FOUND + CRLF + CRLF)); err != nil {
 			return err
 		}
 	}
