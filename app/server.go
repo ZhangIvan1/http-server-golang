@@ -29,9 +29,11 @@ type request struct {
 }
 
 const (
-	CRLF             = "\r\n"
-	STATUS_OK        = "HTTP/1.1 200 OK"
-	STATUS_NOT_FOUND = "HTTP/1.1 404 Not Found"
+	CRLF               = "\r\n"
+	STATUS_OK          = "HTTP/1.1 200 OK"
+	STATUS_CREATED     = "HTTP/1.1 201 Created"
+	STATUS_NOT_FOUND   = "HTTP/1.1 404 Not Found"
+	STATUS_BAD_REQUEST = "HTTP/1.1 400 Bad Request"
 )
 
 func main() {
@@ -132,13 +134,13 @@ func setHeaders(headerLines []string, req *request) error {
 }
 
 func handleEcho(req request, conn net.Conn) error {
-	req.Body = []byte(strings.TrimPrefix(req.Path, "/echo/"))
+	resBody := []byte(strings.TrimPrefix(req.Path, "/echo/"))
 	var writeBuffer bytes.Buffer
 
 	writeBuffer.Write([]byte(STATUS_OK + CRLF))
 	writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
-	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
-	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
+	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(resBody)) + CRLF + CRLF))
+	writeBuffer.Write([]byte(string(resBody) + CRLF + CRLF))
 
 	if _, err := writeBuffer.WriteTo(conn); err != nil {
 		return err
@@ -147,13 +149,13 @@ func handleEcho(req request, conn net.Conn) error {
 }
 
 func handleUserAgent(req request, conn net.Conn) error {
-	req.Body = []byte(req.Headers["User-Agent"])
+	resBody := []byte(req.Headers["User-Agent"])
 	var writeBuffer bytes.Buffer
 
 	writeBuffer.Write([]byte(STATUS_OK + CRLF))
 	writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
-	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
-	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
+	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(resBody)) + CRLF + CRLF))
+	writeBuffer.Write([]byte(string(resBody) + CRLF + CRLF))
 
 	if _, err := writeBuffer.WriteTo(conn); err != nil {
 		return err
@@ -165,33 +167,68 @@ func handleFile(req request, conn net.Conn, baseDir string) error {
 	filePath := baseDir + "/" + strings.TrimPrefix(req.Path, "/files/")
 	fmt.Println("Serving file: ", filePath)
 
-	file, err := os.Open(filePath)
-	if err != nil {
-		if _, err := conn.Write([]byte(STATUS_NOT_FOUND + CRLF + CRLF)); err != nil {
+	switch req.Method {
+	case "GET":
+		file, err := os.Open(filePath)
+		if err != nil {
+			if _, err := conn.Write([]byte(STATUS_NOT_FOUND + CRLF + CRLF)); err != nil {
+				return err
+			}
 			return err
 		}
-		return err
+		defer file.Close()
+
+		fileData, err := ioutil.ReadAll(file)
+		if err != nil {
+			fmt.Println("Error in reading file: ", err.Error())
+			return err
+		}
+
+		resBody := fileData
+		var writeBuffer bytes.Buffer
+
+		writeBuffer.Write([]byte(STATUS_OK + CRLF))
+		writeBuffer.Write([]byte("Content-Type: application/octet-stream" + CRLF))
+		writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(resBody)) + CRLF + CRLF))
+		writeBuffer.Write([]byte(string(resBody) + CRLF + CRLF))
+
+		if _, err := writeBuffer.WriteTo(conn); err != nil {
+			return err
+		}
+		return nil
+	case "POST":
+		if _, err := os.Stat(filePath); err == nil {
+			if _, err := conn.Write([]byte(STATUS_BAD_REQUEST + CRLF + CRLF)); err != nil {
+				return err
+			}
+			return errors.New("the file" + filePath + "has already exist")
+		}
+
+		file, err := os.Create(filePath)
+		if err != nil {
+			if _, err := conn.Write([]byte(STATUS_BAD_REQUEST + CRLF + CRLF)); err != nil {
+				return err
+			}
+			return err
+		}
+		defer file.Close()
+
+		if _, err := file.Write(req.Body); err != nil {
+			if _, err := conn.Write([]byte(STATUS_BAD_REQUEST + CRLF + CRLF)); err != nil {
+				return err
+			}
+			return err
+		}
+
+		if _, err := conn.Write([]byte(STATUS_CREATED + CRLF + CRLF)); err != nil {
+			return err
+		}
+
+		return nil
+	default:
+		return errors.New("/files/ only accept method [get, post]")
 	}
-	defer file.Close()
 
-	fileData, err := ioutil.ReadAll(file)
-	if err != nil {
-		fmt.Println("Error in reading file: ", err.Error())
-		return err
-	}
-
-	req.Body = fileData
-	var writeBuffer bytes.Buffer
-
-	writeBuffer.Write([]byte(STATUS_OK + CRLF))
-	writeBuffer.Write([]byte("Content-Type: application/octet-stream" + CRLF))
-	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
-	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
-
-	if _, err := writeBuffer.WriteTo(conn); err != nil {
-		return err
-	}
-	return nil
 }
 
 func handleResponse(conn net.Conn, req request, baseDir string) error {
