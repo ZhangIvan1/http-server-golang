@@ -154,6 +154,8 @@ func handleUserAgent(req request, conn net.Conn) error {
 	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
 	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
 
+	fmt.Sprintln(writeBuffer)
+
 	if _, err := writeBuffer.WriteTo(conn); err != nil {
 		return err
 	}
