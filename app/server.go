@@ -162,7 +162,7 @@ func handleUserAgent(req request, conn net.Conn) error {
 }
 
 func handleFile(req request, conn net.Conn, baseDir string) error {
-	filePath := baseDir + strings.TrimPrefix(req.Path, "/files/")
+	filePath := baseDir + "/" + strings.TrimPrefix(req.Path, "/files/")
 	fmt.Println("Serving file: ", filePath)
 
 	file, err := os.Open(filePath)
