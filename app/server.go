@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -19,26 +20,44 @@ func main() {
 	}
 
 	// Accept a TCP connection
-	connection, err := listener.Accept()
-	if err != nil {
-		log.Fatalln("Error accepting connection: ", err.Error())
-		os.Exit(1)
+	for true {
+		connection, err := listener.Accept()
+		if err != nil {
+			log.Fatalln("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+		handleConnection(connection)
 	}
+}
 
-	defer connection.Close()
+func handleConnection(conn net.Conn) error {
+	defer conn.Close()
 
-	fmt.Println("New connection from: ", connection.RemoteAddr().String())
+	fmt.Println("New connection from: ", conn.RemoteAddr().String())
 
 	// Read data from the connection
-	buffer := make([]byte, 0, 4096)
-	_, err = connection.Read(buffer)
+	readBuffer := make([]byte, 0, 4096)
+	_, err := conn.Read(readBuffer)
 	if err != nil {
 		log.Fatalln("Error reading data: ", err.Error())
 	}
 
 	//Respond with HTTP/1.1 200 OK\r\n\r\n
-	_, err = connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+	_, err = conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 	if err != nil {
 		log.Fatalln("Error writing output: ", err.Error())
 	}
+
+	readArray := strings.Split(string(readBuffer), " ")
+	fmt.Println(readArray)
+
+	// Otherwise, need to respond with a 404 Not Found response.
+	write := []byte("HTTP/1.1 404 Not Found\r\n\r\n")
+	if readArray[1] == "/" {
+		// If the path is '/', need to respond with a 200 OK response
+		write = []byte("HTTP/1.1 200 OK\r\n\r\n")
+	}
+
+	conn.Write(write)
+	return nil
 }
