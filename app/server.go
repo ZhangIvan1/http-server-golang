@@ -101,7 +101,7 @@ func setRequestPath(line string, req *request) error {
 	parts := strings.Split(line, "")
 
 	if len(parts) != 3 {
-		return errors.New("")
+		return errors.New("the HTTP startline should include three part like: GET /index.html HTTP/1.1")
 	}
 
 	req.method, req.path, req.version = parts[0], parts[1], parts[2]
