@@ -51,14 +51,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := handleConnection(connection); err != nil {
-			log.Fatalln("Error handling connection", err.Error())
-			os.Exit(1)
-		}
+		go handleConnection(connection)
 	}
 }
 
-func handleConnection(conn net.Conn) error {
+func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	fmt.Println("New connection from: ", conn.RemoteAddr().String())
@@ -74,7 +71,6 @@ func handleConnection(conn net.Conn) error {
 		os.Exit(1)
 	}
 
-	return nil
 }
 
 func buildRequest(conn net.Conn) (req request, err error) {
