@@ -105,6 +105,7 @@ func setRequestPath(line string, req *request) error {
 	}
 
 	req.method, req.path, req.version = parts[0], parts[1], parts[2]
+	fmt.Println(req.method, " ", req.path, " ", req.version)
 	return nil
 }
 
@@ -119,6 +120,7 @@ func setHeaders(headerLines []string, req *request) error {
 		splittedLine := strings.Split(line, "")
 		if len(splittedLine) == 2 {
 			req.headers[splittedLine[0]] = splittedLine[1]
+			fmt.Println(splittedLine[0], " ", splittedLine[1])
 		}
 	}
 
