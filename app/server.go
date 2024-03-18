@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -35,6 +37,9 @@ const (
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
+	directoryPtr := flag.String("directory", ".", "the directory to serve files from")
+	flag.Parse()
+	baseDir := *directoryPtr
 
 	// Bind to port 4221
 	listener, err := net.Listen(netType, host+":"+port)
@@ -51,11 +56,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		go handleConnection(connection)
+		go handleConnection(connection, baseDir)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, baseDir string) {
 	defer conn.Close()
 
 	fmt.Println("New connection from: ", conn.RemoteAddr().String())
@@ -66,7 +71,7 @@ func handleConnection(conn net.Conn) {
 		os.Exit(1)
 	}
 
-	if err := handleResponse(conn, req); err != nil {
+	if err := handleResponse(conn, req, baseDir); err != nil {
 		fmt.Println("Error writing output: ", err.Error())
 		os.Exit(1)
 	}
@@ -156,7 +161,40 @@ func handleUserAgent(req request, conn net.Conn) error {
 	return nil
 }
 
-func handleResponse(conn net.Conn, req request) error {
+func handleFile(req request, conn net.Conn, baseDir string) error {
+	filePath := baseDir + strings.TrimPrefix(req.Path, "/files/")
+	fmt.Println("Serving file: ", filePath)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		if _, err := conn.Write([]byte(STATUS_NOT_FOUND + CRLF + CRLF)); err != nil {
+			return err
+		}
+		return err
+	}
+	defer file.Close()
+
+	fileData, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Println("Error in reading file: ", err.Error())
+		return err
+	}
+
+	req.Body = []byte(fileData)
+	var writeBuffer bytes.Buffer
+
+	writeBuffer.Write([]byte(STATUS_OK + CRLF))
+	writeBuffer.Write([]byte("Content-Type: application/octet-stream" + CRLF))
+	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
+	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
+
+	if _, err := writeBuffer.WriteTo(conn); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleResponse(conn net.Conn, req request, baseDir string) error {
 	switch {
 	case req.Path == "/":
 		if _, err := conn.Write([]byte(STATUS_OK + CRLF + CRLF)); err != nil {
@@ -168,6 +206,10 @@ func handleResponse(conn net.Conn, req request) error {
 		}
 	case req.Path == "/user-agent":
 		if err := handleUserAgent(req, conn); err != nil {
+			return err
+		}
+	case req.Path == "/files/":
+		if err := handleFile(req, conn, baseDir); err != nil {
 			return err
 		}
 	default:
