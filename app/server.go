@@ -208,7 +208,7 @@ func handleResponse(conn net.Conn, req request, baseDir string) error {
 		if err := handleUserAgent(req, conn); err != nil {
 			return err
 		}
-	case req.Path == "/files/":
+	case strings.HasPrefix(req.Path, "/files/"):
 		if err := handleFile(req, conn, baseDir); err != nil {
 			return err
 		}
