@@ -145,6 +145,20 @@ func handleEcho(req request, conn net.Conn) error {
 	return nil
 }
 
+func handleUserAgent(req request, conn net.Conn) error {
+	var writeBuffer bytes.Buffer
+
+	writeBuffer.Write([]byte(STATUS_OK + CRLF))
+	writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
+	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Headers["User-Agent"])) + CRLF + CRLF))
+	writeBuffer.Write([]byte(string(req.Headers["User-Agent"]) + CRLF + CRLF))
+
+	if _, err := writeBuffer.WriteTo(conn); err != nil {
+		return err
+	}
+	return nil
+}
+
 func handleResponse(conn net.Conn, req request) error {
 	switch {
 	case req.Path == "/":
@@ -155,7 +169,10 @@ func handleResponse(conn net.Conn, req request) error {
 		if err := handleEcho(req, conn); err != nil {
 			return err
 		}
-
+	case req.Path == "/user-agent":
+		if err := handleUserAgent(req, conn); err != nil {
+			return err
+		}
 	default:
 		if _, err := conn.Write([]byte(STATUS_NOT_FOUND + CRLF + CRLF)); err != nil {
 			return err
