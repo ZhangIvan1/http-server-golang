@@ -93,7 +93,7 @@ func buildRequest(conn net.Conn) (req request, err error) {
 	}
 	front := parts[0]
 	back := parts[1]
-	fmt.Println(back)
+
 	startLine := strings.Split(front, CRLF)[0]
 	headers := strings.Split(front, CRLF)[1:]
 	err = setRequestPath(startLine, &req)
@@ -101,7 +101,7 @@ func buildRequest(conn net.Conn) (req request, err error) {
 		return req, err
 	}
 	setHeaders(headers, &req)
-	req.Body = []byte(back)
+	req.Body = []byte(strings.TrimRight(back, "\x00"))
 
 	return req, nil
 }
