@@ -120,7 +120,7 @@ func setHeaders(headerLines []string, req *request) error {
 	}
 
 	for _, line := range headerLines {
-		splittedLine := strings.Split(line, "")
+		splittedLine := strings.Split(line, " ")
 		if len(splittedLine) == 2 {
 			req.Headers[splittedLine[0]] = splittedLine[1]
 			fmt.Println(splittedLine[0], " ", splittedLine[1])
@@ -153,8 +153,6 @@ func handleUserAgent(req request, conn net.Conn) error {
 	writeBuffer.Write([]byte("Content-Type: text/plain" + CRLF))
 	writeBuffer.Write([]byte("Content-Length: " + strconv.Itoa(len(req.Body)) + CRLF + CRLF))
 	writeBuffer.Write([]byte(string(req.Body) + CRLF + CRLF))
-
-	fmt.Sprintln(writeBuffer)
 
 	if _, err := writeBuffer.WriteTo(conn); err != nil {
 		return err
