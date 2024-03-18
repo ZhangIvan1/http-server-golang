@@ -87,17 +87,20 @@ func buildRequest(conn net.Conn) (req request, err error) {
 		return req, err
 	}
 
-	parts := strings.Split(string(buffer), "\r\n")
+	parts := strings.Split(string(buffer), CRLF+CRLF)
 	if len(parts) == 0 {
 		return req, errors.New("HTTP startline missing")
 	}
-	startLine := parts[0]
-	headers := parts[1:]
+	front := parts[0]
+	back := parts[1]
+	startLine := strings.Split(front, CRLF)[0]
+	headers := strings.Split(front, CRLF)[1:]
 	err = setRequestPath(startLine, &req)
 	if err != nil {
 		return req, err
 	}
 	setHeaders(headers, &req)
+	req.Body = []byte(back)
 
 	return req, nil
 }
