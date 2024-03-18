@@ -62,12 +62,12 @@ func handleConnection(conn net.Conn) error {
 
 	req, err := buildRequest(conn)
 	if err != nil {
-		fmt.Println("Error reading data", err.Error())
+		fmt.Println("Error reading data: ", err.Error())
 		os.Exit(1)
 	}
 
 	if err := handleResponse(conn, req); err != nil {
-		fmt.Println("Error writing output", err.Error())
+		fmt.Println("Error writing output: ", err.Error())
 		os.Exit(1)
 	}
 
@@ -98,7 +98,7 @@ func buildRequest(conn net.Conn) (req request, err error) {
 
 //GET /index.html HTTP/1.1
 func setRequestPath(line string, req *request) error {
-	parts := strings.Split(line, "")
+	parts := strings.Split(line, " ")
 
 	if len(parts) != 3 {
 		return errors.New("the HTTP startline should include three part like: GET /index.html HTTP/1.1")
